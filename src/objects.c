@@ -988,7 +988,7 @@ static uint8_t step_one_active_obj(ActiveObj *o, uint8_t sonic_spinning) {
                 } else if (sub == 0x02) {
                     g_lives++;
                     g_hud_dirty = 1;
-                    hw_play_bgm(BGM_EXTRALIFE);
+                    //hw_play_bgm(BGM_EXTRALIFE);
                 } else if (sub == 0x03) {
                     g_sonic.shoes = 1200;
                     hw_play_sfx(SFX_SPRING);
@@ -1000,7 +1000,7 @@ static uint8_t step_one_active_obj(ActiveObj *o, uint8_t sonic_spinning) {
                         g_invinc_vblanks_pending = 0;
                         g_sonic.invinc = 1200;
                     }
-                    hw_play_bgm(BGM_INVINC);
+//                    hw_play_bgm(BGM_INVINC);
                 } else if (sub == 0x07) {
                     g_rings += 50;
                     g_sonic.shield = 1;
@@ -1010,7 +1010,7 @@ static uint8_t step_one_active_obj(ActiveObj *o, uint8_t sonic_spinning) {
                         g_sonic.invinc = 1200;
                     }
                     g_hud_dirty = 1;
-                    hw_play_bgm(BGM_INVINC);
+//                    hw_play_bgm(BGM_INVINC);
                 } else {
                     g_rings += 10;
                     g_score += 100;
