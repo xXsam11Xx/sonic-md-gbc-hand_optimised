@@ -678,7 +678,7 @@ void physics_update_level(void) BANKED {
         frc >>= 1;
         grv = SONIC_UW_GRV;
         if (g_sonic.air_frames > 0) g_sonic.air_frames--;
-        if (g_sonic.air_frames == 720) hw_play_bgm(BGM_DROWNING);
+        if (g_sonic.air_frames == 720); //hw_play_bgm(BGM_DROWNING);
         if (g_sonic.air_frames == 0) {
             sonic_hurt_or_kill(1);
             return;
@@ -689,7 +689,7 @@ void physics_update_level(void) BANKED {
         g_sonic.air_frames = 1800;
         spawn_enemy_projectile(g_sonic.x, g_water_y, 0, 0, PROJ_SPLASH);
         hw_play_sfx(SFX_SPLASH);
-        if (g_cur_bgm == BGM_DROWNING) hw_play_bgm(g_ram_act.music_id);
+        //if (g_cur_bgm == BGM_DROWNING) hw_play_bgm(g_ram_act.music_id);
     }
     hw_set_underwater_palette(g_sonic.underwater);
 
