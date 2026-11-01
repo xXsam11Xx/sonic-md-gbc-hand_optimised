@@ -252,7 +252,7 @@ void screens_init_mode(uint8_t mode) BANKED {
         set_sprite_data(0, 3, s_tson_face_tiles);
         set_sprite_palette(0, 2, s_tson_face_pals);
         draw_title_sonic_face_oam();
-        hw_play_bgm(BGM_TITLE);
+//        hw_play_bgm(BGM_TITLE);
     } else if (mode == GM_LEVEL_SELECT) {
         s_ls_sel = g_cur_act < 19 ? g_cur_act : 0;
         s_ls_top = 0;
@@ -264,7 +264,7 @@ void screens_init_mode(uint8_t mode) BANKED {
         hw_fill_win_rect(0, 17, 20, 1, 126);
         WX_REG = 7;
         WY_REG = 0;
-        hw_play_bgm(BGM_TITLE);
+//        hw_play_bgm(BGM_TITLE);
     } else if (mode == GM_LEVEL) {
         g_demo_pos = 0;
         g_demo_btn = 0;
@@ -286,7 +286,7 @@ void screens_init_mode(uint8_t mode) BANKED {
         hw_print_win(2, 13, "SCORE");
         hw_print_win(2, 14, "TIME BONUS");
         hw_print_win(2, 15, "RING BONUS");
-        hw_play_bgm(BGM_ACTCLEAR);
+//        hw_play_bgm(BGM_ACTCLEAR);
     } else if (mode == GM_SPECIAL_STAGE) {
         uint16_t mi;
         hw_load_special_stage_vram(g_cur_ss, &s_ss_px, &s_ss_py);
@@ -300,7 +300,7 @@ void screens_init_mode(uint8_t mode) BANKED {
         s_ss_rot_spd = 56;
         s_ss_vx = 0;
         s_ss_vy = 0;
-        hw_play_bgm(BGM_SS);
+//        hw_play_bgm(BGM_SS);
         ss_render_rotating_viewport_field(0);
         ss_render_rotating_viewport_field(1);
         ss_render_rotating_viewport_field(2);
@@ -324,22 +324,22 @@ void screens_init_mode(uint8_t mode) BANKED {
         hw_print_win(1, 13, em_buf);
         hw_print_win(2, 14, "SCORE");
         hw_print_win(2, 15, "RING BONUS");
-        hw_play_bgm(BGM_ACTCLEAR);
+//        hw_play_bgm(BGM_ACTCLEAR);
         sram_save_progress();
     } else if (mode == GM_CONTINUE) {
         set_bkg_palette(7, 1, s_ui_pal);
         hw_show_transition_card("CONTINUE", "PRESS START", 0);
-        hw_play_bgm(BGM_CONTINUE);
+//        hw_play_bgm(BGM_CONTINUE);
     } else if (mode == GM_GAME_OVER) {
         sram_save_progress();
         set_bkg_palette(7, 1, s_ui_pal);
         hw_show_transition_card("GAME OVER", "TRY AGAIN", 0);
-        hw_play_bgm(BGM_GAMEOVER);
+//        hw_play_bgm(BGM_GAMEOVER);
     } else if (mode == GM_ENDING) {
         sram_save_progress();
         g_cur_act = 19; /* Authentic Green Hill Blooming Flowers Ending Zone! */
         hw_load_act(19);
-        hw_play_bgm(BGM_ENDING);
+//        hw_play_bgm(BGM_ENDING);
         if ((g_emeralds & 0x3F) == 0x3F) {
             hw_print_win(0, 0, "ALL 6 EMERALDS OK!  ");
             hw_print_win(0, 1, "THANK YOU FOR PLAY! ");
@@ -356,7 +356,7 @@ void screens_init_mode(uint8_t mode) BANKED {
         hw_print_win(0, 1, g_jp_credits ? s_cred_jp_name[0] : s_cred_en_name[0]);
         WX_REG = 7;
         WY_REG = 128;
-        hw_play_bgm(BGM_CREDITS);
+//        hw_play_bgm(BGM_CREDITS);
     } else if (mode == GM_TRY_AGAIN) {
         set_bkg_palette(7, 1, s_ui_pal);
         if ((g_emeralds & 0x3F) == 0x3F) {
@@ -476,8 +476,9 @@ void screens_update_mode(uint8_t mode) BANKED {
             if (g_joy_pressed & J_LEFT) s_ls_sound = (s_ls_sound <= 0x81) ? 0xD0 : (s_ls_sound - 1);
             if (g_joy_pressed & J_RIGHT) s_ls_sound = (s_ls_sound >= 0xD0) ? 0x81 : (s_ls_sound + 1);
             if (g_joy_pressed & (J_A | J_B)) {
-                if (s_ls_sound <= 0x93) hw_play_bgm(s_ls_sound);
-                else hw_play_sfx(s_ls_sound);
+               // if (s_ls_sound <= 0x93) hw_play_bgm(s_ls_sound);
+                //else 
+				hw_play_sfx(s_ls_sound);
             }
             s_ls_dirty = 2;
         } else if (g_joy_pressed & (J_START | J_A)) {
@@ -565,7 +566,7 @@ void screens_update_mode(uint8_t mode) BANKED {
             if (elapsed_vblanks && g_sonic.invinc > 0) {
                 if (elapsed_vblanks >= g_sonic.invinc) {
                     g_sonic.invinc = 0;
-                    hw_play_bgm(g_ram_act.music_id);
+//                    hw_play_bgm(g_ram_act.music_id);
                 } else {
                     g_sonic.invinc -= elapsed_vblanks;
                 }
@@ -681,7 +682,7 @@ void screens_update_mode(uint8_t mode) BANKED {
             if (ss_is_solid(hit)) {
                 if (hit == 0x25) { s_ss_vx = (s_ss_vx < 0) ? 0x0480 : -0x0480; hw_play_sfx(SFX_BUMPER); }
                 else if (hit == 0x27) { hw_play_sfx(SFX_GOAL); g_next_mode = GM_SS_RESULTS; return; }
-                else if (hit == 0x28) { s_ss_ram[((uint16_t)cy << 6) | cx] = 0; g_lives++; g_hud_dirty = 1; hw_play_bgm(BGM_EXTRALIFE); }
+                else if (hit == 0x28) { s_ss_ram[((uint16_t)cy << 6) | cx] = 0; g_lives++; g_hud_dirty = 1;} //hw_play_bgm(BGM_EXTRALIFE); }
                 else if (hit == 0x29) { s_ss_rot_spd = (s_ss_rot_spd >= 0) ? 96 : -96; s_ss_vx = -s_ss_vx; hw_play_sfx(SFX_SWITCH); }
                 else if (hit == 0x2A) { s_ss_rot_spd = (s_ss_rot_spd >= 0) ? 32 : -32; s_ss_vx = -s_ss_vx; hw_play_sfx(SFX_SWITCH); }
                 else if (hit == 0x2B) { s_ss_rot_spd = -s_ss_rot_spd; s_ss_vx = -s_ss_vx; hw_play_sfx(SFX_SPRING); }
@@ -729,7 +730,7 @@ void screens_update_mode(uint8_t mode) BANKED {
             g_hud_dirty = 1;
             if (g_rings == 50) {
                 g_continues++;
-                hw_play_bgm(BGM_CONTINUE);
+//                hw_play_bgm(BGM_CONTINUE);
             } else {
                 hw_play_sfx(SFX_RING);
             }
@@ -738,7 +739,7 @@ void screens_update_mode(uint8_t mode) BANKED {
             g_emeralds |= (uint8_t)(1 << (g_cur_ss % 6));
             g_ss_got_emerald = 1;
             g_cur_ss = (g_cur_ss + 1) % 6;
-            hw_play_bgm(BGM_EMERALD);
+//            hw_play_bgm(BGM_EMERALD);
             g_next_mode = GM_SS_RESULTS;
             return;
         }
