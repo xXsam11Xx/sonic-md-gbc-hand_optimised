@@ -3,10 +3,6 @@
 #include "zp_pals.h"
 #include <stddef.h>
 
-#ifndef SONIC_GAMEPLAY_30FPS
-#define SONIC_GAMEPLAY_30FPS 0
-#endif
-
 /* Interrupt-safe `memcpy` replacement: GBDK's default `___memcpy` loads
  * hardware `SP = src` without disabling `IME`, which corrupts `SP` and RAM if
  * our `60 Hz` `hw_sound_isr` or `5,461 Hz` `hw_sega_pcm_tim_isr` fires mid-copy! */
@@ -146,6 +142,9 @@ ActiveObj g_objs[MAX_ACTIVE_OBJS];
 LostRing g_lost_rings[MAX_LOST_RINGS];
 ProjObj g_projs[MAX_PROJS];
 ScorePop g_pops[MAX_SCORE_POPS];
+
+//---------------------------------------------
+
 uint8_t g_obj_taken[64];
 
 int16_t g_cam_x = 0;
@@ -177,6 +176,8 @@ volatile uint8_t g_boss_active = 0;
 volatile uint8_t g_boss_defeated = 0;
 uint16_t g_syz_blocks_alive = 0x03FF;
 int16_t g_water_y = 0x7FFF;
+
+//-------------------------------
 
 VisualSetDesc g_ram_vset;
 ActDesc g_ram_act;
@@ -252,11 +253,11 @@ static void start_bgm_unlocked(uint8_t bgm_id) {
     SWITCH_ROM(prev);
 }
 
-void hw_play_bgm(uint8_t bgm_id) {
-    s_audio_lock = 1;
-    start_bgm_unlocked(bgm_id);
-    s_audio_lock = 0;
-}
+//void hw_play_bgm(uint8_t bgm_id) {
+  //  s_audio_lock = 1;
+   // start_bgm_unlocked(bgm_id);
+    //s_audio_lock = 0;
+//}
 
 void hw_play_sfx(uint8_t sfx_id) {
     uint8_t prev;
@@ -272,9 +273,9 @@ void hw_play_sfx(uint8_t sfx_id) {
     s_sfx_wait = 0;
     g_sound_events++;
 
-    /* Warm, authentic hardware sweep transients for signature Sonic SFX (`Jump`, `Ring`, `Spring`) */
+    //hardware sweeps for SFX 
     if (sfx_id == SFX_JUMP) {
-        NR10_REG = 0x2B;
+		NR10_REG = 0x2B;
         NR11_REG = 0x80;
         NR12_REG = 0xB2;
         NR13_REG = 0x88;
@@ -295,164 +296,164 @@ void hw_play_sfx(uint8_t sfx_id) {
     s_audio_lock = 0;
 }
 
-void hw_sound_tick(void) {
-    uint8_t prev = CURRENT_BANK;
-
-    /* 1. Step 4-channel Concert-Pitch SMPS BGM Stream */
-    if (s_bgm_ptr != 0 && s_bgm_bank != 0) {
-        if (s_bgm_wait > 0) {
-            s_bgm_wait--;
-        } else {
-            uint8_t op;
-            SWITCH_ROM(s_bgm_bank);
-            op = *s_bgm_ptr++;
-            if (op == 0x00) {
-                s_bgm_ptr = s_bgm_base;
-                op = *s_bgm_ptr++;
-            } else if (op == 0xFF) {
-                s_bgm_ptr = 0;
-                if (g_game_mode == GM_LEVEL) {
-                    SWITCH_ROM(prev);
-                    start_bgm_unlocked(g_ram_act.music_id);
-                    return;
-                }
-                op = 0;
-            }
-            if (op >= 1 && op <= 0x7F) {
-                s_bgm_wait = op - 1;
-            } else if (op & 0x80) {
-                if (op & 1) { /* CH1 Warm 50% Lead Melody */
-                    uint8_t lo = *s_bgm_ptr++;
-                    uint8_t hi = *s_bgm_ptr++;
-                    uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
-                    if (per == 0) {
-                        NR12_REG = 0x00;
-                    } else if (hi & 0x80) {
-                        uint8_t vol = (hi >> 3) & 0x0F;
-                        NR10_REG = 0x00;
-                        NR11_REG = 0x80;
-                        NR12_REG = (uint8_t)((vol << 4) | 0x04);
-                        NR13_REG = lo;
-                        NR14_REG = 0x80 | (hi & 0x07);
-                    } else {
-                        NR13_REG = lo;
-                        NR14_REG = (hi & 0x07);
-                    }
-                }
-                if (op & 2) { /* CH2 Balanced 25% Harmony / Counter-Melody */
-                    uint8_t lo = *s_bgm_ptr++;
-                    uint8_t hi = *s_bgm_ptr++;
-                    if (!s_sfx_active) {
-                        uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
-                        if (per == 0) {
-                            NR22_REG = 0x00;
-                        } else if (hi & 0x80) {
-                            uint8_t vol = (hi >> 3) & 0x0F;
-                            NR21_REG = 0x40;
-                            NR22_REG = (uint8_t)((vol << 4) | 0x04);
-                            NR23_REG = lo;
-                            NR24_REG = 0x80 | (hi & 0x07);
-                        } else {
-                            NR23_REG = lo;
-                            NR24_REG = (hi & 0x07);
-                        }
-                    }
-                }
-                if (op & 4) { /* CH3 Warm Rounded Wave-RAM Bass */
-                    uint8_t lo = *s_bgm_ptr++;
-                    uint8_t hi = *s_bgm_ptr++;
-                    uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
-                    s_ch3_bass_per = per;
-                    if (s_bass_dirty) {
-                        s_bass_dirty = 0;
-                        s_dac_drum_kind = 0;
-                        hw_install_bass_wave();
-                        SWITCH_ROM(s_bgm_bank);
-                    }
-                    if (per == 0) {
-                        NR32_REG = 0x00;
-                    } else {
-                        NR30_REG = 0x80;
-                        NR32_REG = 0x20;
-                        NR33_REG = lo;
-                        NR34_REG = ((hi & 0x80) ? 0x80 : 0x00) | (hi & 0x07);
-                    }
-                }
-                if (op & 8) { /* CH4 Warm Non-Screechy Analog Percussion + Optional Sub-Bass Transient */
-                    uint8_t drum = *s_bgm_ptr++;
-                    if (drum == 5) {
-                        /* Soft brushed closed hi-hat (low LFSR clock + short 15 ms length gate) */
-                        NR41_REG = 0x3C; NR42_REG = 0x21; NR43_REG = 0x43; NR44_REG = 0xC0;
-                    } else {
-                        if (s_ch3_bass_per == 0) {
-                            s_dac_drum_kind = drum ? drum : 1;
-                            s_dac_drum_pkt = 0;
-                            play_wave_drum_packet(s_dac_drum_kind, 0);
-                            SWITCH_ROM(s_bgm_bank);
-                        } else {
-                            g_dac_drum_packets++;
-                        }
-                        if (drum == 1) {        /* Warm Punchy Kick (`1.1 kHz` LFSR thump) */
-                            NR41_REG = 0x36; NR42_REG = 0x61; NR43_REG = 0x57; NR44_REG = 0xC0;
-                        } else if (drum == 2) { /* Warm Crisp Snare (`3.2 kHz` body, zero white hiss) */
-                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x44; NR44_REG = 0xC0;
-                        } else if (drum == 3) { /* Warm High Timpani */
-                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x55; NR44_REG = 0xC0;
-                        } else {                /* Warm Low Timpani */
-                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x65; NR44_REG = 0xC0;
-                        }
-                    }
-                }
-                g_sound_events++;
-            }
-        }
-    }
-
-    /* Brief 2-frame low sub-bass drum transient when CH3 bass is idle */
-    if (s_dac_drum_kind != 0) {
-        s_dac_drum_pkt++;
-        if (s_dac_drum_pkt < 2 && s_ch3_bass_per == 0) {
-            play_wave_drum_packet(s_dac_drum_kind, s_dac_drum_pkt);
-        } else {
-            s_dac_drum_kind = 0;
-            if (s_bass_dirty && s_ch3_bass_per == 0) {
-                NR32_REG = 0x00;
-            }
-        }
-    }
-
-    /* 2. Step SMPS Sound Effect Overlay on CH2 / CH4 */
-    if (s_sfx_active && s_sfx_ptr != 0) {
-        if (s_sfx_wait > 0) {
-            s_sfx_wait--;
-        } else {
-            uint8_t dur;
-            SWITCH_ROM(SFX_DATA_BANK);
-            dur = *s_sfx_ptr++;
-            if (dur == 0) {
-                s_sfx_active = 0;
-            } else {
-                uint8_t mode = *s_sfx_ptr++;
-                uint8_t lo = *s_sfx_ptr++;
-                uint8_t hi = *s_sfx_ptr++;
-                s_sfx_wait = dur - 1;
-                if ((mode & 1) && (lo | hi)) {
-                    NR21_REG = 0x80;
-                    NR22_REG = 0xA2;
-                    NR23_REG = lo;
-                    NR24_REG = 0x80 | (hi & 0x07);
-                }
-                if (mode & 2) {
-                    NR41_REG = 0x20;
-                    NR42_REG = 0x92;
-                    NR43_REG = 0x33;
-                    NR44_REG = 0xC0;
-                }
-            }
-        }
-    }
-    SWITCH_ROM(prev);
-}
+//void hw_sound_tick(void) {
+//    uint8_t prev = CURRENT_BANK;
+//
+//    /* 1. Step 4-channel Concert-Pitch SMPS BGM Stream */
+//    if (s_bgm_ptr != 0 && s_bgm_bank != 0) {
+//        if (s_bgm_wait > 0) {
+//            s_bgm_wait--;
+//        } else {
+//            uint8_t op;
+//            SWITCH_ROM(s_bgm_bank);
+//            op = *s_bgm_ptr++;
+//            if (op == 0x00) {
+//                s_bgm_ptr = s_bgm_base;
+//                op = *s_bgm_ptr++;
+//            } else if (op == 0xFF) {
+//                s_bgm_ptr = 0;
+//                if (g_game_mode == GM_LEVEL) {
+//                    SWITCH_ROM(prev);
+//                    start_bgm_unlocked(g_ram_act.music_id);
+//                    return;
+//                }
+//                op = 0;
+//            }
+//            if (op >= 1 && op <= 0x7F) {
+//                s_bgm_wait = op - 1;
+//            } else if (op & 0x80) {
+//                if (op & 1) { /* CH1 Warm 50% Lead Melody */
+//                    uint8_t lo = *s_bgm_ptr++;
+//                    uint8_t hi = *s_bgm_ptr++;
+//                    uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
+//                    if (per == 0) {
+//                        NR12_REG = 0x00;
+//                    } else if (hi & 0x80) {
+//                        uint8_t vol = (hi >> 3) & 0x0F;
+//                        NR10_REG = 0x00;
+//                        NR11_REG = 0x80;
+//                        NR12_REG = (uint8_t)((vol << 4) | 0x04);
+//                        NR13_REG = lo;
+//                        NR14_REG = 0x80 | (hi & 0x07);
+//                    } else {
+//                        NR13_REG = lo;
+//                        NR14_REG = (hi & 0x07);
+//                    }
+//                }
+//                if (op & 2) { /* CH2 Balanced 25% Harmony / Counter-Melody */
+//                    uint8_t lo = *s_bgm_ptr++;
+//                    uint8_t hi = *s_bgm_ptr++;
+//                    if (!s_sfx_active) {
+//                        uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
+//                        if (per == 0) {
+//                            NR22_REG = 0x00;
+//                        } else if (hi & 0x80) {
+//                            uint8_t vol = (hi >> 3) & 0x0F;
+//                            NR21_REG = 0x40;
+//                            NR22_REG = (uint8_t)((vol << 4) | 0x04);
+//                            NR23_REG = lo;
+//                            NR24_REG = 0x80 | (hi & 0x07);
+//                        } else {
+//                            NR23_REG = lo;
+//                            NR24_REG = (hi & 0x07);
+//                        }
+//                    }
+//                }
+//                if (op & 4) { /* CH3 Warm Rounded Wave-RAM Bass */
+//                    uint8_t lo = *s_bgm_ptr++;
+//                    uint8_t hi = *s_bgm_ptr++;
+//                    uint16_t per = lo | ((uint16_t)(hi & 7) << 8);
+//                    s_ch3_bass_per = per;
+//                    if (s_bass_dirty) {
+//                        s_bass_dirty = 0;
+//                        s_dac_drum_kind = 0;
+//                        hw_install_bass_wave();
+//                        SWITCH_ROM(s_bgm_bank);
+//                    }
+//                    if (per == 0) {
+//                        NR32_REG = 0x00;
+//                    } else {
+//                        NR30_REG = 0x80;
+//                        NR32_REG = 0x20;
+//                        NR33_REG = lo;
+//                        NR34_REG = ((hi & 0x80) ? 0x80 : 0x00) | (hi & 0x07);
+//                    }
+//                }
+//                if (op & 8) { /* CH4 Warm Non-Screechy Analog Percussion + Optional Sub-Bass Transient */
+//                    uint8_t drum = *s_bgm_ptr++;
+//                    if (drum == 5) {
+//                        /* Soft brushed closed hi-hat (low LFSR clock + short 15 ms length gate) */
+//                        NR41_REG = 0x3C; NR42_REG = 0x21; NR43_REG = 0x43; NR44_REG = 0xC0;
+//                    } else {
+//                        if (s_ch3_bass_per == 0) {
+//                            s_dac_drum_kind = drum ? drum : 1;
+//                            s_dac_drum_pkt = 0;
+//                            play_wave_drum_packet(s_dac_drum_kind, 0);
+//                            SWITCH_ROM(s_bgm_bank);
+//                        } else {
+//                            g_dac_drum_packets++;
+//                        }
+//                        if (drum == 1) {        /* Warm Punchy Kick (`1.1 kHz` LFSR thump) */
+//                            NR41_REG = 0x36; NR42_REG = 0x61; NR43_REG = 0x57; NR44_REG = 0xC0;
+//                        } else if (drum == 2) { /* Warm Crisp Snare (`3.2 kHz` body, zero white hiss) */
+//                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x44; NR44_REG = 0xC0;
+//                        } else if (drum == 3) { /* Warm High Timpani */
+//                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x55; NR44_REG = 0xC0;
+//                        } else {                /* Warm Low Timpani */
+//                            NR41_REG = 0x34; NR42_REG = 0x51; NR43_REG = 0x65; NR44_REG = 0xC0;
+//                        }
+//                    }
+//                }
+//                g_sound_events++;
+//            }
+//        }
+//    }
+//
+//    /* Brief 2-frame low sub-bass drum transient when CH3 bass is idle */
+//    if (s_dac_drum_kind != 0) {
+//        s_dac_drum_pkt++;
+//        if (s_dac_drum_pkt < 2 && s_ch3_bass_per == 0) {
+//            play_wave_drum_packet(s_dac_drum_kind, s_dac_drum_pkt);
+//        } else {
+//            s_dac_drum_kind = 0;
+//            if (s_bass_dirty && s_ch3_bass_per == 0) {
+//                NR32_REG = 0x00;
+//            }
+//        }
+//    }
+//
+//    /* 2. Step SMPS Sound Effect Overlay on CH2 / CH4 */
+//    if (s_sfx_active && s_sfx_ptr != 0) {
+//        if (s_sfx_wait > 0) {
+//            s_sfx_wait--;
+//        } else {
+//            uint8_t dur;
+//            SWITCH_ROM(SFX_DATA_BANK);
+//            dur = *s_sfx_ptr++;
+//            if (dur == 0) {
+//                s_sfx_active = 0;
+//            } else {
+//                uint8_t mode = *s_sfx_ptr++;
+//                uint8_t lo = *s_sfx_ptr++;
+//                uint8_t hi = *s_sfx_ptr++;
+//                s_sfx_wait = dur - 1;
+//                if ((mode & 1) && (lo | hi)) {
+//                    NR21_REG = 0x80;
+//                    NR22_REG = 0xA2;
+//                    NR23_REG = lo;
+//                    NR24_REG = 0x80 | (hi & 0x07);
+//                }
+//                if (mode & 2) {
+//                    NR41_REG = 0x20;
+//                    NR42_REG = 0x92;
+//                    NR43_REG = 0x33;
+//                    NR44_REG = 0xC0;
+//                }
+//            }
+//        }
+//    }
+//    SWITCH_ROM(prev);
+//}
 
 /* 8 Crisp Simultaneous CGB Hardware Sprite Palettes (OBP0..OBP7) */
 const uint16_t g_default_obj_pals[32] = {
@@ -587,7 +588,7 @@ void hw_sound_isr(void) {
         NR51_REG = 0xFF;
         s_paused_muted = 0;
     }
-    hw_sound_tick();
+    //hw_sound_tick();
 }
 
 BANKREF_EXTERN(print_win_ram_b127)
@@ -1522,7 +1523,7 @@ void hw_load_act(uint8_t act_idx) {
     set_sprite_palette(0, 8, g_default_obj_pals);
     if (g_ram_act.vset_idx == 0) set_sprite_palette(6, 2, g_ghz_obj_pal67);   /* GHZ: dirt/wood + grass for bridge, ledge, platforms */
     else set_sprite_palette(6, 2, g_zp_pal67[g_ram_act.vset_idx]);            /* other zones: platform / block / hazard colours */
-    hw_play_bgm(g_ram_act.music_id);
+    //hw_play_bgm(g_ram_act.music_id);
     hw_refresh_full_viewport();
 
     /* Hold Title Card briefly so player reads Zone & Act, then reveal HUD bar at WY=128! */
