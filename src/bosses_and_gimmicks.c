@@ -288,7 +288,7 @@ void boss_check_and_update(uint8_t sonic_spinning) BANKED {
         s_fz_pair = 0;
         s_fz_egg_slot = 1;
         s_fz_ext = 0;
-        hw_play_bgm(g_cur_act == 18 ? BGM_FZ : BGM_BOSS);
+//        hw_play_bgm(g_cur_act == 18 ? BGM_FZ : BGM_BOSS);
         for (s = 0; s < MAX_ACTIVE_OBJS; s++) {
             if (!g_objs[s].active) {
                 g_objs[s].active = 1;
@@ -472,7 +472,7 @@ uint8_t gimmick_handle_object(ActiveObj *o, int16_t sx, int16_t sy, uint8_t soni
                     g_boss_defeated = 1;
                     g_score += 1000;
                     g_hud_dirty = 1;
-                    hw_play_bgm(g_ram_act.music_id);
+//                    hw_play_bgm(g_ram_act.music_id);
                     o->id = 0x3E; /* Spawn Prison Capsule directly in arena! */
                     o->y = g_sonic.y;
                     o->state = 0;
@@ -717,7 +717,7 @@ uint8_t gimmick_handle_object(ActiveObj *o, int16_t sx, int16_t sy, uint8_t soni
             g_sonic.air_frames = 1800;
             g_sonic.anim = ANI_GETAIR;
             hw_play_sfx(SFX_BUBBLE);
-            if (g_cur_bgm == BGM_DROWNING) hw_play_bgm(g_ram_act.music_id);
+//            if (g_cur_bgm == BGM_DROWNING) hw_play_bgm(g_ram_act.music_id);
         }
         if (phase64 > 28) {
             hw_put_sprite16(sx, sy, SPR_TILE_BUBBLE_BIG, 4);
